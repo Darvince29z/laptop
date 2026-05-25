@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Dell Repair Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #F5F7FA; min-height: 100vh; }
+  header { background: #0076CE; padding: 18px 28px; display: flex; align-items: center; gap: 14px; }
+  .logo { background: #fff; border-radius: 8px; padding: 4px 10px; font-weight: 700; font-size: 15px; color: #0076CE; letter-spacing: 1px; }
+  header h1 { color: #fff; font-weight: 500; font-size: 17px; flex: 1; }
+  #btn-new { background: #fff; color: #0076CE; border: none; border-radius: 7px; padding: 8px 18px; font-weight: 600; font-size: 14px; cursor: pointer; }
+  .main { padding: 24px 28px; }
+  .stats { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+  .stat-card { background: #fff; border: 0.5px solid #e0e0e0; border-radius: 10px; padding: 14px 18px; flex: 1; min-width: 100px; }
+  .stat-card .slabel { font-size: 12px; color: #666; margin-bottom: 4px; }
+  .stat-card .sval { font-size: 26px; font-weight: 600; }
+  .filters { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+  .filters input, .filters select { padding: 8px 12px; border: 0.5px solid #ccc; border-radius: 7px; font-size: 14px; background: #fff; }
+  .filters input { flex: 1; min-width: 200px; }
+  .table-wrap { background: #fff; border-radius: 12px; border: 0.5px solid #e0e0e0; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: #F5F7FA; border-bottom: 0.5px solid #e0e0e0; }
+  th { padding: 11px 14px; text-align: left; font-weight: 600; color: #444; white-space: nowrap; }
+  td { padding: 11px 14px; border-bottom: 0.5px solid #f0f0f0; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  .empty { padding: 48px; text-align: center; color: #aaa; font-size: 15px; }
+  .badge select { border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 500; cursor: pointer; border-width: 1px; border-style: solid; }
+  .s-Pending { background: #FFF3CD; color: #856404; border-color: #FFECB5; }
+  .s-InProgress { background: #CCE5FF; color: #004085; border-color: #B8DAFF; }
+  .s-Repaired { background: #D4EDDA; color: #155724; border-color: #C3E6CB; }
+  .s-Returned { background: #E2E3E5; color: #383D41; border-color: #D6D8DB; }
+  .btn-edit { background: none; border: 0.5px solid #ccc; border-radius: 5px; padding: 4px 10px; font-size: 12px; cursor: pointer; color: #0076CE; margin-right: 6px; }
+  .btn-del { background: none; border: 0.5px solid #fcc; border-radius: 5px; padding: 4px 10px; font-size: 12px; cursor: pointer; color: #c0392b; }
+  .serial { font-family: monospace; font-size: 12px; color: #666; }
+  .issue-cell { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Modal */
+  #modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); align-items: center; justify-content: center; z-index: 100; }
+  #modal-bg.open { display: flex; }
+  #modal { background: #fff; border-radius: 14px; padding: 28px; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+  #modal h2 { font-size: 16px; font-weight: 600; color: #0076CE; margin-bottom: 20px; }
+  .field { margin-bottom: 14px; }
+  .field label { font-size: 12px; color: #555; display: block; margin-bottom: 4px; }
+  .field input, .field select, .field textarea { width: 100%; padding: 8px 10px; border: 0.5px solid #ccc; border-radius: 7px; font-size: 13px; font-family: inherit; }
+  .field textarea { resize: vertical; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  #btn-cancel { padding: 9px 20px; border: 0.5px solid #ccc; border-radius: 7px; background: #fff; font-size: 14px; cursor: pointer; }
+  #btn-save { padding: 9px 20px; border: none; border-radius: 7px; background: #0076CE; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">DELL</div>
+  <h1>Repair Tracker</h1>
+  <button id="btn-new">+ New Ticket</button>
+</header>
+
+<div class="main">
+  <div class="stats">
+    <div class="stat-card"><div class="slabel">Total Tickets</div><div class="sval" id="s-total" style="color:#0076CE">0</div></div>
+    <div class="stat-card"><div class="slabel">Pending</div><div class="sval" id="s-pending" style="color:#856404">0</div></div>
+    <div class="stat-card"><div class="slabel">In Progress</div><div class="sval" id="s-inprogress" style="color:#004085">0</div></div>
+    <div class="stat-card"><div class="slabel">Repaired</div><div class="sval" id="s-repaired" style="color:#155724">0</div></div>
+    <div class="stat-card"><div class="slabel">Returned</div><div class="sval" id="s-returned" style="color:#383D41">0</div></div>
+  </div>
+
+  <div class="filters">
+    <input type="text" id="search" placeholder="Search client, device, serial, assigned IT..." oninput="render()" />
+    <select id="filter-status" onchange="render()">
+      <option value="All">All Statuses</option>
+      <option>Pending</option>
+      <option>In Progress</option>
+      <option>Repaired</option>
+      <option>Returned</option>
+    </select>
+  </div>
+
+  <div class="table-wrap">
+    <div id="empty" class="empty" style="display:none">No tickets yet. Create your first repair ticket.</div>
+    <div id="no-match" class="empty" style="display:none">No tickets match your search.</div>
+    <table id="ticket-table">
+      <thead>
+        <tr>
+          <th>Client</th><th>Device</th><th>Serial No.</th><th>Issue</th>
+          <th>Assigned IT</th><th>Received</th><th>Status</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal-bg">
+  <div id="modal">
+    <h2 id="modal-title">New Repair Ticket</h2>
+    <div class="field"><label>Client Name *</label><input id="f-client" placeholder="e.g. Juan dela Cruz" /></div>
+    <div class="field"><label>Device Model *</label><input id="f-device" placeholder="e.g. Dell XPS 15 9520" /></div>
+    <div class="field"><label>Serial Number</label><input id="f-serial" placeholder="e.g. ABC1234" /></div>
+    <div class="field"><label>Issue Description *</label><textarea id="f-issue" rows="3" placeholder="Describe the problem..."></textarea></div>
+    <div class="field"><label>Assigned IT</label><input id="f-tech" placeholder="Assigned IT name" /></div>
+    <div class="field"><label>Date Received</label><input id="f-received" type="date" /></div>
+    <div class="field"><label>Status</label>
+      <select id="f-status">
+        <option>Pending</option><option>In Progress</option><option>Repaired</option><option>Returned</option>
+      </select>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="f-notes" rows="2" placeholder="Additional notes..."></textarea></div>
+    <div class="modal-actions">
+      <button id="btn-cancel">Cancel</button>
+      <button id="btn-save">Create Ticket</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  var tickets = JSON.parse(localStorage.getItem('dell_tickets') || '[]');
+  var editId = null;
+
+  function save() { localStorage.setItem('dell_tickets', JSON.stringify(tickets)); }
+
+  function statusClass(s) { return 's-' + s.replace(' ', ''); }
+
+  function render() {
+    var q = document.getElementById('search').value.toLowerCase();
+    var fs = document.getElementById('filter-status').value;
+    var filtered = tickets.filter(function(t) {
+      var ms = !q || [t.client, t.device, t.serial, t.tech].join(' ').toLowerCase().includes(q);
+      var mf = fs === 'All' || t.status === fs;
+      return ms && mf;
+    });
+
+    document.getElementById('s-total').textContent = tickets.length;
+    document.getElementById('s-pending').textContent = tickets.filter(function(t){return t.status==='Pending';}).length;
+    document.getElementById('s-inprogress').textContent = tickets.filter(function(t){return t.status==='In Progress';}).length;
+    document.getElementById('s-repaired').textContent = tickets.filter(function(t){return t.status==='Repaired';}).length;
+    document.getElementById('s-returned').textContent = tickets.filter(function(t){return t.status==='Returned';}).length;
+
+    var tbl = document.getElementById('ticket-table');
+    var empty = document.getElementById('empty');
+    var noMatch = document.getElementById('no-match');
+    var tbody = document.getElementById('tbody');
+
+    tbl.style.display = filtered.length ? '' : 'none';
+    empty.style.display = tickets.length === 0 ? '' : 'none';
+    noMatch.style.display = tickets.length > 0 && filtered.length === 0 ? '' : 'none';
+
+    tbody.innerHTML = filtered.map(function(t) {
+      return '<tr>' +
+        '<td><strong>' + esc(t.client) + '</strong></td>' +
+        '<td>' + esc(t.device) + '</td>' +
+        '<td class="serial">' + (t.serial || '—') + '</td>' +
+        '<td><div class="issue-cell" title="' + esc(t.issue) + '">' + esc(t.issue) + '</div></td>' +
+        '<td>' + (t.tech || '—') + '</td>' +
+        '<td style="white-space:nowrap">' + (t.received || '—') + '</td>' +
+        '<td class="badge"><select class="' + statusClass(t.status) + '" onchange="changeStatus(' + t.id + ', this.value)">' +
+          ['Pending','In Progress','Repaired','Returned'].map(function(s){ return '<option' + (t.status===s?' selected':'') + '>' + s + '</option>'; }).join('') +
+        '</select></td>' +
+        '<td style="white-space:nowrap"><button class="btn-edit" onclick="openEdit(' + t.id + ')">Edit</button><button class="btn-del" onclick="del(' + t.id + ')">Delete</button></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function changeStatus(id, val) {
+    tickets = tickets.map(function(t){ return t.id===id ? Object.assign({},t,{status:val}) : t; });
+    save(); render();
+  }
+
+  function del(id) {
+    if (!confirm('Delete this ticket?')) return;
+    tickets = tickets.filter(function(t){ return t.id!==id; });
+    save(); render();
+  }
+
+  function openModal(isEdit) {
+    document.getElementById('modal-title').textContent = isEdit ? 'Edit Ticket' : 'New Repair Ticket';
+    document.getElementById('btn-save').textContent = isEdit ? 'Save Changes' : 'Create Ticket';
+    document.getElementById('modal-bg').classList.add('open');
+  }
+
+  function closeModal() {
+    editId = null;
+    document.getElementById('modal-bg').classList.remove('open');
+    ['client','device','serial','issue','tech','received','notes'].forEach(function(k){ document.getElementById('f-'+k).value=''; });
+    document.getElementById('f-status').value = 'Pending';
+  }
+
+  function openEdit(id) {
+    var t = tickets.find(function(x){ return x.id===id; });
+    if (!t) return;
+    editId = id;
+    document.getElementById('f-client').value = t.client || '';
+    document.getElementById('f-device').value = t.device || '';
+    document.getElementById('f-serial').value = t.serial || '';
+    document.getElementById('f-issue').value = t.issue || '';
+    document.getElementById('f-tech').value = t.tech || '';
+    document.getElementById('f-received').value = t.received || '';
+    document.getElementById('f-status').value = t.status || 'Pending';
+    document.getElementById('f-notes').value = t.notes || '';
+    openModal(true);
+  }
+
+  document.getElementById('btn-new').onclick = function() { editId = null; openModal(false); };
+  document.getElementById('btn-cancel').onclick = closeModal;
+  document.getElementById('modal-bg').onclick = function(e) { if (e.target===this) closeModal(); };
+
+  document.getElementById('btn-save').onclick = function() {
+    var client = document.getElementById('f-client').value.trim();
+    var device = document.getElementById('f-device').value.trim();
+    var issue = document.getElementById('f-issue').value.trim();
+    if (!client || !device || !issue) { alert('Client, Device, and Issue are required.'); return; }
+    var obj = {
+      client: client, device: device,
+      serial: document.getElementById('f-serial').value.trim(),
+      issue: issue,
+      tech: document.getElementById('f-tech').value.trim(),
+      received: document.getElementById('f-received').value,
+      status: document.getElementById('f-status').value,
+      notes: document.getElementById('f-notes').value.trim()
+    };
+    if (editId !== null) {
+      obj.id = editId;
+      tickets = tickets.map(function(t){ return t.id===editId ? obj : t; });
+    } else {
+      obj.id = Date.now();
+      tickets.push(obj);
+    }
+    save(); closeModal(); render();
+  };
+
+  render();
+</script>
+</body>
+</html>
